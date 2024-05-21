@@ -3,6 +3,19 @@ package com.blitzhetz.view;
 import java.util.List;
 
 public class PasswordView {
+
+    public void initialScreen() {
+        System.out.println();
+        System.out.println(" _      _____  ___  ");
+        System.out.println("| |    |  ___|/ _ \\ ");
+        System.out.println("| |    | |__ / /_\\ \\");
+        System.out.println("| |    |  __||  _  |");
+        System.out.println("| |____| |___| | | |");
+        System.out.println("\\_____/\\____/\\_| |_/");
+        System.out.println("                    ");
+        System.out.println();
+    }
+
     public void displayPasswords(List<String> passwords) {
         System.out.println("Existing Passwords:");
         for (String password : passwords) {

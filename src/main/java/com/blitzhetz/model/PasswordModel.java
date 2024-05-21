@@ -153,6 +153,7 @@ public class PasswordModel {
                             Runtime.getRuntime().exec(cmd);
                         } else {
                             // Linux-specific clipboard command
+                            // TODO: fix this, it don't work
                             String[] cmd = { "bash", "-c",
                                     "printf '%s' '" + decryptedPassword + "' | xclip -selection clipboard" };
                             Runtime.getRuntime().exec(cmd);
