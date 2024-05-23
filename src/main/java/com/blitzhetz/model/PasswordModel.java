@@ -16,7 +16,7 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Properties;
 import java.util.Scanner;
-
+import java.util.concurrent.ThreadLocalRandom;
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.SecretKeyFactory;
@@ -24,7 +24,7 @@ import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
 
 public class PasswordModel {
-    // TODO: this should be assigned by a user when user run first time application
+
     private static final String SECRET_KEY = "DropItLikeItsHot!!!";
     private static final String SALT = "EYt1kBk6I6W6sgcITXkRmA==";
 
@@ -77,11 +77,12 @@ public class PasswordModel {
     public void addPassword(String name, String password) {
         try {
             String encryptedPassword = encrypt(password);
-            // TODO:
-            try (FileWriter writer = new FileWriter(fileName, true);
-                    BufferedWriter bw = new BufferedWriter(writer);
-                    PrintWriter out = new PrintWriter(bw)) {
-                if (!passwordExists(name, encryptedPassword)) {
+            try (
+                FileWriter writer = new FileWriter(fileName, true);
+                BufferedWriter bw = new BufferedWriter(writer);
+                PrintWriter out = new PrintWriter(bw)
+            ) {
+                if (!checkService(name, encryptedPassword)) {
                     out.println(name + ":" + encryptedPassword);
                 }
             }
@@ -103,19 +104,23 @@ public class PasswordModel {
         return passwords;
     }
 
-    private boolean passwordExists(String name, String encryptedPassword) {
+    private boolean checkService(String name, String encryptedPassword) {
         List<String> passwords = getPasswords();
 
         for (String passwordEntry : passwords) {
             String[] parts = passwordEntry.split(":");
             if (parts.length != 2) {
-                System.out.println("Invalid password entry format: " + passwordEntry);
+                System.out.println(
+                    "Invalid password entry format: " + passwordEntry
+                );
                 continue;
             }
 
             String serviceName = parts[0];
             String password = parts[1];
-            if (serviceName.equals(name) && password.equals(encryptedPassword)) {
+            if (
+                serviceName.equals(name) && password.equals(encryptedPassword)
+            ) {
                 return true;
             }
         }
@@ -123,14 +128,14 @@ public class PasswordModel {
         return false;
     }
 
-    // we can't simply make automatic copy to clipboard as we don't have access
-    // but we can use external tools something like pbcopy
     public void copyPassword(String name) {
         List<String> passwords = getPasswords();
         for (String passwordEntry : passwords) {
             String[] parts = passwordEntry.split(":");
             if (parts.length != 2) {
-                System.out.println("Invalid password entry format: " + passwordEntry);
+                System.out.println(
+                    "Invalid password entry format: " + passwordEntry
+                );
                 continue;
             }
             String service = parts[0];
@@ -139,30 +144,10 @@ public class PasswordModel {
                 String decryptedPassword = decrypt(encryptedPassword);
                 if (decryptedPassword != null) {
                     decryptedPassword = decryptedPassword.trim();
-                    try {
-                        // https://stackoverflow.com/questions/6710350/copying-text-to-the-clipboard-using-java
-                        String os = System.getProperty("os.name").toLowerCase();
-                        if (os.contains("win")) {
-                            // Windows-specific clipboard command
-                            StringSelection stringSelection = new StringSelection(decryptedPassword);
-                            Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
-                            clipboard.setContents(stringSelection, null);
-                        } else if (os.contains("mac")) {
-                            // Mac-specific clipboard command
-                            String[] cmd = { "bash", "-c", "printf '%s' '" + decryptedPassword + "' | pbcopy" };
-                            Runtime.getRuntime().exec(cmd);
-                        } else {
-                            // Linux-specific clipboard command
-                            // TODO: fix this, it don't work
-                            String[] cmd = { "bash", "-c",
-                                    "printf '%s' '" + decryptedPassword + "' | xclip -selection clipboard" };
-                            Runtime.getRuntime().exec(cmd);
-                        }
-                        System.out.println("Password for " + name + " copied to clipboard!");
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                        System.out.println("Error copying password to clipboard.");
-                    }
+                    copyToClipboard(decryptedPassword);
+                    System.out.println(
+                        "Password for " + name + " copied to clipboard!"
+                    );
                 } else {
                     System.out.println("Error: Failed to decrypt password.");
                 }
@@ -172,20 +157,75 @@ public class PasswordModel {
         System.out.println("Password for " + name + " not found.");
     }
 
-    /*
-     * TODO: CHECK THIS!
-     * because i'am stupid and can't learn this
-     * https://stackoverflow.com/questions/10303767/encrypt-and-decrypt-in-java
-     * https://www.baeldung.com/java-aes-encryption-decryption
-     * https://jenkov.com/tutorials/java-cryptography/cipher.html
-     */
+    public String generatePassword(int length) {
+        StringBuilder randomPassword = new StringBuilder(length);
 
-    // TODO: NEXT TIME DON'T USE BCRYPT OR ANY OTHER ONE-WAY HASH ALGO PLEASE!!!
+        for (int j = 0; j < length; j++) {
+            randomPassword.append(randomCharacter());
+        }
+
+        String generatedPassword = randomPassword.toString();
+        copyToClipboard(generatedPassword);
+        System.out.println("Generated password copied to clipboard!");
+        return generatedPassword;
+    }
+
+    private void copyToClipboard(String text) {
+        try {
+            String os = System.getProperty("os.name").toLowerCase();
+            if (os.contains("win")) {
+                StringSelection stringSelection = new StringSelection(text);
+                Clipboard clipboard = Toolkit.getDefaultToolkit()
+                    .getSystemClipboard();
+                clipboard.setContents(stringSelection, null);
+            } else if (os.contains("mac")) {
+                String[] cmd = {
+                    "bash",
+                    "-c",
+                    "printf '%s' '" + text + "' | pbcopy",
+                };
+                Runtime.getRuntime().exec(cmd);
+            } else {
+                String[] cmd = {
+                    "bash",
+                    "-c",
+                    "printf '%s' '" + text + "' | xclip -selection clipboard",
+                };
+                Runtime.getRuntime().exec(cmd);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+            System.out.println("Error copying text to clipboard.");
+        }
+    }
+
+    public char randomCharacter() {
+        int rand = ThreadLocalRandom.current().nextInt(62);
+
+        if (rand < 10) {
+            return (char) ('0' + rand); // 0-9
+        } else if (rand < 36) {
+            return (char) ('A' + rand - 10); // 10-35 mapped to A-Z
+        } else {
+            return (char) ('a' + rand - 36); // 36-61 mapped to a-z
+        }
+    }
+
     private String encrypt(String strToEncrypt) {
         try {
-            SecretKeyFactory factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
-            KeySpec spec = new PBEKeySpec(SECRET_KEY.toCharArray(), SALT.getBytes(), 65536, 256);
-            SecretKey secretKey = new SecretKeySpec(factory.generateSecret(spec).getEncoded(), "AES");
+            SecretKeyFactory factory = SecretKeyFactory.getInstance(
+                "PBKDF2WithHmacSHA256"
+            );
+            KeySpec spec = new PBEKeySpec(
+                SECRET_KEY.toCharArray(),
+                SALT.getBytes(),
+                65536,
+                256
+            );
+            SecretKey secretKey = new SecretKeySpec(
+                factory.generateSecret(spec).getEncoded(),
+                "AES"
+            );
             Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
             cipher.init(Cipher.ENCRYPT_MODE, secretKey);
             byte[] encryptedBytes = cipher.doFinal(strToEncrypt.getBytes());
@@ -198,12 +238,24 @@ public class PasswordModel {
 
     private String decrypt(String strToDecrypt) {
         try {
-            SecretKeyFactory factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
-            KeySpec spec = new PBEKeySpec(SECRET_KEY.toCharArray(), SALT.getBytes(), 65536, 256);
-            SecretKey secretKey = new SecretKeySpec(factory.generateSecret(spec).getEncoded(), "AES");
+            SecretKeyFactory factory = SecretKeyFactory.getInstance(
+                "PBKDF2WithHmacSHA256"
+            );
+            KeySpec spec = new PBEKeySpec(
+                SECRET_KEY.toCharArray(),
+                SALT.getBytes(),
+                65536,
+                256
+            );
+            SecretKey secretKey = new SecretKeySpec(
+                factory.generateSecret(spec).getEncoded(),
+                "AES"
+            );
             Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5PADDING");
             cipher.init(Cipher.DECRYPT_MODE, secretKey);
-            byte[] decryptedBytes = cipher.doFinal(Base64.getDecoder().decode(strToDecrypt));
+            byte[] decryptedBytes = cipher.doFinal(
+                Base64.getDecoder().decode(strToDecrypt)
+            );
             return new String(decryptedBytes);
         } catch (Exception e) {
             e.printStackTrace();

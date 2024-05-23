@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.util.Properties;
 
 public class FileManager {
+
     // https://stackoverflow.com/questions/22370051/how-to-write-values-in-a-properties-file-through-java-code
     // https://www.tutorialspoint.com/how-to-read-write-data-from-to-properties-file-in-java
     private static final String CONFIG_FILE = "config.properties";
